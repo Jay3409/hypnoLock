@@ -6,11 +6,11 @@
 - Extract the ZIP file into a location of your choice
 - Run the `Screen Lock.exe` file in the `bin` subfolder
 
-# Setup
+## Setup
 - After launching the program, you can see an input field labled "Device Name". Enter a name that makes it easy to distinguish you from others. That name must be unique, so if you use more then one device they have to have different names.
 - After setting the name, restart the program by right-clicking the app icon in the system tray and selecting "Exit"
 
-# Usage
+## Usage
 - Once your device name is set up, your partner can remotely "lock" your device. This opens a fullscreen window on every screen which shows an animation.
 - Your partner is able to send you messages while you are locked, which will be displayed on the screen for you
 - As long as your device is in this locked state, your partner will see your keystrokes
