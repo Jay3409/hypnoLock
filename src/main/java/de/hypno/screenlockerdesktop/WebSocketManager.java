@@ -9,12 +9,15 @@ import org.java_websocket.handshake.ServerHandshake;
 
 public class WebSocketManager implements Runnable {
 
-    private static final String WEBSOCKET_URI = "wss://ws.3409.de:8081";
+    private static final String WEBSOCKET_URI = "wss://ws.3409.de:8082";
     private WebSocketClient webSocketClient;
     private final OverlayManager overlayManager;
     private final SettingsController settingsController;
-    private String deviceName;
+
+    private String username;
+    private String password;
     private String selectedImage;
+
     private volatile boolean running = false;
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
 
@@ -28,9 +31,10 @@ public class WebSocketManager implements Runnable {
         System.out.println(String.format("[%s] [WebSocketManager] %s", LocalTime.now().format(TIME_FORMATTER), message));
     }
 
-    public void start(String deviceName, String selectedImage) {
-        log("START called for device: " + deviceName);
-        this.deviceName = deviceName;
+    public void start(String username, String password, String selectedImage) {
+        log("START called for user: " + username);
+        this.username = username;
+        this.password = password;
         this.selectedImage = selectedImage;
         this.running = true;
         Thread thread = new Thread(this);
@@ -62,9 +66,8 @@ public class WebSocketManager implements Runnable {
         webSocketClient = new WebSocketClient(new URI(WEBSOCKET_URI)) {
             @Override
             public void onOpen(ServerHandshake handshakedata) {
-                log("ON_OPEN: Connection established. Sending handshake.");
-                settingsController.notifyConnectionOpened(deviceName); // <-- NEW: Specific event
-                webSocketClient.send("barkbarkwoofඞ" + deviceName);
+                log("ON_OPEN: Connection established. Sending auth command.");
+                sendAuthMessage();
             }
 
             @Override
@@ -76,7 +79,7 @@ public class WebSocketManager implements Runnable {
             @Override
             public void onClose(int code, String reason, boolean remote) {
                 log(String.format("ON_CLOSE: Code: %d, Reason: '%s', Remote: %b. Current 'running' state is %b.", code, reason, remote, running));
-                settingsController.notifyConnectionClosed(reason); // <-- NEW: Specific event
+                settingsController.notifyConnectionClosed(reason);
                 if (running) {
                     reconnect();
                 }
@@ -85,7 +88,6 @@ public class WebSocketManager implements Runnable {
             @Override
             public void onError(Exception ex) {
                 log("ON_ERROR: " + ex.getClass().getSimpleName() + " - " + ex.getMessage());
-                // The 'onClose' method is usually called immediately after an error.
             }
         };
         webSocketClient.connect();
@@ -108,36 +110,144 @@ public class WebSocketManager implements Runnable {
         }
     }
 
-    // ... (handleMessage and sendMessage methods are unchanged)
     private void handleMessage(String message) {
-        String[] parts = message.split("ඞ");
-        if (parts.length < 2) return;
+        try {
+            String cmd = getJsonValue(message, "cmd");
+            String data = getJsonValue(message, "data");
 
-        String command = parts[0];
-        String targetDevice = parts[1];
+            if (cmd == null) {
+                log("Could not parse 'cmd' from message: " + message);
+                return;
+            }
 
-        if (deviceName.equals(targetDevice)) {
-            switch (command) {
+            switch (cmd) {
+                case "auth":
+                    if ("success".equals(data)) {
+                        log("Authentication successful.");
+                        settingsController.notifyConnectionOpened(this.username);
+                    } else {
+                        log("Authentication failed. Reason: " + data);
+                        settingsController.notifyConnectionFailed("Auth failed: " + data);
+                        close();
+                    }
+                    break;
                 case "lock":
-                    overlayManager.showLockOverlay(deviceName, selectedImage, this);
+                    overlayManager.showLockOverlay(this.username, selectedImage, this);
                     break;
                 case "unlock":
                     overlayManager.hideLockOverlay();
                     break;
-                case "CHAT":
-                    if (parts.length >= 3) {
-                        String chatMessage = parts[2];
-                        overlayManager.showMessage(chatMessage);
-                    }
+                case "chat":
+                    overlayManager.showMessage(data);
+                    break;
+                case "controlled_users_update":
+                    log("Received status update for controlled users: " + data);
+                    break;
+                // --- NEW COMMANDS ---
+                case "add_ctrl":
+                    settingsController.notifyControllerCommandResult("add", data);
+                    break;
+                case "remove_ctrl":
+                    settingsController.notifyControllerCommandResult("remove", data);
+                    break;
+                case "list_ctrl":
+                    settingsController.updateControllerList(data);
+                    break;
+                default:
+                    log("Received unknown command: " + cmd);
                     break;
             }
+        } catch (Exception e) {
+            log("Failed to process incoming message: " + message + ". Error: " + e.getMessage());
         }
     }
 
-    public void sendMessage(String message) {
+    private void sendAuthMessage() {
+        sendMessage(this.username, "auth", this.password);
+    }
+
+    public void sendMessage(String target, String cmd, Object data) {
         if (webSocketClient != null && webSocketClient.isOpen()) {
-            log("SENDING message: " + message);
-            webSocketClient.send(message);
+            String dataJson;
+            if (data == null) {
+                dataJson = "null";
+            } else if (data instanceof String) {
+                String escapedData = ((String) data).replace("\\", "\\\\").replace("\"", "\\\"");
+                dataJson = "\"" + escapedData + "\"";
+            } else {
+                dataJson = data.toString();
+            }
+
+            String jsonMessage = String.format(
+                "{\"target\": \"%s\", \"cmd\": \"%s\", \"data\": %s, \"apiVersion\": 2}",
+                target, cmd, dataJson
+            );
+
+            log("SENDING message: " + jsonMessage);
+            webSocketClient.send(jsonMessage);
+        }
+    }
+    
+    // --- NEW PUBLIC METHODS FOR CONTROLLERS ---
+    public void addController(String userToAdd) {
+        sendMessage(userToAdd, "add_ctrl", null);
+    }
+
+    public void removeController(String userToRemove) {
+        sendMessage(userToRemove, "remove_ctrl", null);
+    }
+
+    public void listControllers() {
+        // "target" is our own username for this command
+        sendMessage(this.username, "list_ctrl", null);
+    }
+
+
+    /**
+     * A simple, robust parser to extract a value from a JSON string.
+     * It handles whitespace and distinguishes between quoted strings and other values.
+     */
+    private String getJsonValue(String json, String key) {
+        // This parser needs to handle json arrays for the list_ctrl command.
+        // For simplicity, we assume the 'data' value is either a simple value or a well-formed array.
+        String keyPattern = "\"" + key + "\":";
+        int keyIndex = json.indexOf(keyPattern);
+        if (keyIndex == -1) {
+            return null;
+        }
+
+        int currentIndex = keyIndex + keyPattern.length();
+
+        // Skip leading whitespace to find the start of the value
+        while (currentIndex < json.length() && Character.isWhitespace(json.charAt(currentIndex))) {
+            currentIndex++;
+        }
+
+        if (currentIndex >= json.length()) {
+            return null; // No value found
+        }
+
+        char startChar = json.charAt(currentIndex);
+        if (startChar == '\"') {
+            // Value is a quoted string
+            int valueStartIndex = currentIndex + 1;
+            int valueEndIndex = json.indexOf('\"', valueStartIndex);
+            if (valueEndIndex == -1) return null;
+            return json.substring(valueStartIndex, valueEndIndex);
+        } else if (startChar == '[') {
+            // Value is a JSON array
+            int arrayEndIndex = json.indexOf(']', currentIndex);
+            if (arrayEndIndex == -1) return null;
+            return json.substring(currentIndex, arrayEndIndex + 1);
+        }
+        else {
+            // Value is not a quoted string (e.g., number, boolean, null)
+            int valueEndIndex = json.indexOf(',', currentIndex);
+            if (valueEndIndex == -1) {
+                valueEndIndex = json.indexOf('}', currentIndex);
+            }
+            if (valueEndIndex == -1) return null;
+            return json.substring(currentIndex, valueEndIndex).trim();
         }
     }
 }
