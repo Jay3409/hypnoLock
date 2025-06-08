@@ -1,0 +1,60 @@
+name: Build Cross-Platform Packages
+
+on:
+  push:
+    branches: [ "main", "master" ] # Triggers the build on a push to main/master
+
+jobs:
+  build:
+    # Run on both Ubuntu and Windows virtual machines
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v3
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: maven
+
+    # WiX is only needed for the Windows build
+    - name: Set up WiX Toolset
+      if: matrix.os == 'windows-latest'
+      uses: mitchdenny/wix-toolset-action@v1.2
+
+    - name: Build with Maven and JLink
+      run: mvn -B install javafx:jlink
+
+    - name: Run jpackage for Linux
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        jpackage --type app-image \
+          --app-version 1.0.0 \
+          --dest target/dist \
+          --name "Screen Locker" \
+          --runtime-image target/screenlocker-runtime \
+          --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp \
+          --icon package/linux/icon.png
+
+    - name: Run jpackage for Windows
+      if: matrix.os == 'windows-latest'
+      run: |
+        jpackage --type app-image `
+          --app-version 1.0.0 `
+          --dest target/dist `
+          --name "Screen Locker" `
+          --runtime-image target/screenlocker-runtime `
+          --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp `
+          --icon package/windows/icon.ico
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: package-${{ matrix.os }}
+        path: target/dist/*
