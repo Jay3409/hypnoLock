@@ -1,18 +1,28 @@
 # HypnoLock
+
 ## Installation
+
 - Click on the "Actions" Tab above
 - Select the most recent successful build at the top of the list
 - Download the build that corresponds to your operatig systen at the bottom (i.e. "package-windows-latest" if youre using widnow)
 - Extract the ZIP file into a location of your choice
-- Run the `Screen Lock.exe` file in the `bin` subfolder
-
-## Setup
-- After launching the program, you can see an input field labled "Device Name". Enter a name that makes it easy to distinguish you from others. That name must be unique, so if you use more then one device they have to have different names.
-- After setting the name, restart the program by right-clicking the app icon in the system tray and selecting "Exit"
+- Run the `Screen Lock` file in the `bin` subfolder
 
 ## Usage
-- Once your device name is set up, your partner can remotely "lock" your device. This opens a fullscreen window on every screen which shows an animation.
-- Your partner is able to send you messages while you are locked, which will be displayed on the screen for you
-- As long as your device is in this locked state, your partner will see your keystrokes
-- You can unlock yourself by pressing the escape key. This will notify yout partner.
-- Closing the settings window does not stop the program from running. To stop it, right click the app ivon in the system tray and select "Exit"
+
+### Setup
+
+- If you are using this program for the first time, create an account at https://hypno.3409.de/register.html
+- Once you have an account you can log in within the program. Enter your username and password, select an option from the "Hypno image" dropdown, and click "Connect"
+- If your login was successful, you should see the "Controller Management" menu open. Enter the username of your friend under "Add a new controller" and click "Add". **Note:** your friend must have controller permission to be added, not everyone can be a controller.
+- If successful, you should see their name in the "Controllers with access to this account" list.
+
+### When locked
+
+If you've been locked, you should see a spiral on all of your screens. Your controller might show text messages in the center of the screen.
+**While you are locked, your controller will see your keystrokes!**
+You can press ESC at any time while locked to unlock yourself.
+
+### Exiting
+
+Simply closing the window will not stop the program from running and you can still be locked. To actually exit the program, right click the icon in the system tray and select "Exit"
