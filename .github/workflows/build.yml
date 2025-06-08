@@ -14,19 +14,24 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up JDK 21
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
 
-    # WiX is only needed for the Windows build
-    - name: Set up WiX Toolset
+    # For the Windows build, install WiX Toolset using Chocolatey
+    - name: Install WiX Toolset (Windows only)
       if: matrix.os == 'windows-latest'
-      uses: mitchdenny/wix-toolset-action@v1.2
+      run: choco install wixtoolset -y --version 3.14.0
+
+    # For the Linux build, install the necessary packaging dependencies
+    - name: Install Linux Dependencies
+      if: matrix.os == 'ubuntu-latest'
+      run: sudo apt-get update && sudo apt-get install -y fakeroot
 
     - name: Build with Maven and JLink
       run: mvn -B install javafx:jlink
@@ -53,8 +58,9 @@ jobs:
           --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp `
           --icon package/windows/icon.ico
 
+    # Upload the packaged application. This uses the updated v4 action.
     - name: Upload Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: package-${{ matrix.os }}
         path: target/dist/*
