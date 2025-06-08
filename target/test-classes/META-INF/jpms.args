@@ -1,4 +1,0 @@
---patch-module
-de.hypno.screenlockerdesktop=_
---add-reads
-de.hypno.screenlockerdesktop=ALL-UNNAMED
