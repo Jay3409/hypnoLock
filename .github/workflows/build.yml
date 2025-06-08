@@ -2,11 +2,10 @@ name: Build Cross-Platform Packages
 
 on:
   push:
-    branches: [ "main", "master" ] # Triggers the build on a push to main/master
+    branches: [ "main", "master" ]
 
 jobs:
   build:
-    # Run on both Ubuntu and Windows virtual machines
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -22,11 +21,6 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
-
-    # For the Windows build, install WiX Toolset using Chocolatey
-    - name: Install WiX Toolset (Windows only)
-      if: matrix.os == 'windows-latest'
-      run: choco install wixtoolset -y --version 3.14.0
 
     # For the Linux build, install the necessary packaging dependencies
     - name: Install Linux Dependencies
@@ -58,7 +52,6 @@ jobs:
           --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp `
           --icon package/windows/icon.ico
 
-    # Upload the packaged application. This uses the updated v4 action.
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
