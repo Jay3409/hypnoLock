@@ -6,10 +6,11 @@ on:
 
 jobs:
   build:
+    # --- CHANGE 1: Add macos-latest to the build matrix ---
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
     - name: Checkout code
@@ -22,7 +23,6 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
-    # For the Linux build, install the necessary packaging dependencies
     - name: Install Linux Dependencies
       if: matrix.os == 'ubuntu-latest'
       run: sudo apt-get update && sudo apt-get install -y fakeroot
@@ -52,8 +52,21 @@ jobs:
           --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp `
           --icon package/windows/icon.ico
 
+    # --- CHANGE 2: Add a new step specifically for the macOS build ---
+    - name: Run jpackage for macOS
+      if: matrix.os == 'macos-latest'
+      run: |
+        jpackage --type dmg \
+          --app-version 1.0.0 \
+          --dest target/dist \
+          --name "Screen Locker" \
+          --runtime-image target/screenlocker-runtime \
+          --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp \
+          --icon package/macos/icon.icns
+
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: package-${{ matrix.os }}
         path: target/dist/*
+
