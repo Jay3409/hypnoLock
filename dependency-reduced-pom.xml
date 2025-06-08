@@ -44,6 +44,9 @@
         <artifactId>javafx-maven-plugin</artifactId>
         <version>0.0.8</version>
         <configuration>
+          <addModules>
+            <module>jdk.crypto.ec</module>
+          </addModules>
           <mainClass>de.hypno.screenlockerdesktop.MainApp</mainClass>
           <jlinkImageName>screenlocker-runtime</jlinkImageName>
           <launcher>screenlocker</launcher>

@@ -6,7 +6,6 @@ on:
 
 jobs:
   build:
-    # --- CHANGE 1: Add macos-latest to the build matrix ---
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -27,9 +26,13 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: sudo apt-get update && sudo apt-get install -y fakeroot
 
-    - name: Build with Maven and JLink
-      run: mvn -B install javafx:jlink
+    # --- CHANGE 1: Use 'mvn install' to compile and copy dependencies ---
+    # We no longer run the faulty 'javafx:jlink' goal here. This now
+    # prepares the target/dependencies folder correctly.
+    - name: Build with Maven
+      run: mvn -B install
 
+    # --- CHANGE 2: Update the jpackage command for Linux ---
     - name: Run jpackage for Linux
       if: matrix.os == 'ubuntu-latest'
       run: |
@@ -37,10 +40,13 @@ jobs:
           --app-version 1.0.0 \
           --dest target/dist \
           --name "Screen Locker" \
-          --runtime-image target/screenlocker-runtime \
+          --module-path "target/dependencies/*:target/screenlockerdesktop-1.0-SNAPSHOT.jar" \
+          --add-modules de.hypno.screenlockerdesktop,javafx.controls,javafx.fxml,org.java_websocket,jdk.crypto.ec \
           --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp \
           --icon package/linux/icon.png
 
+    # --- CHANGE 3: Update the jpackage command for Windows ---
+    # Note the semicolon (;) in the module-path for Windows.
     - name: Run jpackage for Windows
       if: matrix.os == 'windows-latest'
       run: |
@@ -48,11 +54,12 @@ jobs:
           --app-version 1.0.0 `
           --dest target/dist `
           --name "Screen Locker" `
-          --runtime-image target/screenlocker-runtime `
+          --module-path "target/dependencies/*;target/screenlockerdesktop-1.0-SNAPSHOT.jar" `
+          --add-modules de.hypno.screenlockerdesktop,javafx.controls,javafx.fxml,org.java_websocket,jdk.crypto.ec `
           --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp `
           --icon package/windows/icon.ico
 
-    # --- CHANGE 2: Add a new step specifically for the macOS build ---
+    # --- CHANGE 4: Update the jpackage command for macOS ---
     - name: Run jpackage for macOS
       if: matrix.os == 'macos-latest'
       run: |
@@ -60,7 +67,8 @@ jobs:
           --app-version 1.0.0 \
           --dest target/dist \
           --name "Screen Locker" \
-          --runtime-image target/screenlocker-runtime \
+          --module-path "target/dependencies/*:target/screenlockerdesktop-1.0-SNAPSHOT.jar" \
+          --add-modules de.hypno.screenlockerdesktop,javafx.controls,javafx.fxml,org.java_websocket,jdk.crypto.ec \
           --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp \
           --icon package/macos/icon.icns
 
@@ -69,4 +77,3 @@ jobs:
       with:
         name: package-${{ matrix.os }}
         path: target/dist/*
-
