@@ -2,9 +2,7 @@
 
 ## Installation
 
-- Click on the "Actions" Tab above
-- Select the most recent successful build at the top of the list
-- Download the build that corresponds to your operatig systen at the bottom (i.e. "package-windows-latest" if youre using widnow)
+- Download the most recent build that corresponds to your operatig systen at the bottom (i.e. "package-windows-latest" if youre using widnow)
 - Extract the ZIP file into a location of your choice
 - Run the `Screen Lock` file in the `bin` subfolder
 
