@@ -42,7 +42,6 @@ jobs:
           --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp \
           --icon package/linux/icon.png
     
-    # --- CHANGE: Archive the Linux app-image directory ---
     - name: Archive Linux app-image
       if: matrix.os == 'ubuntu-latest'
       run: tar -czf target/dist/Screen-Locker-Linux-x64.tar.gz -C target/dist "Screen Locker"
@@ -60,7 +59,6 @@ jobs:
           --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp `
           --icon package/windows/icon.ico
 
-    # --- CHANGE: Archive the Windows app-image directory ---
     - name: Archive Windows app-image
       if: matrix.os == 'windows-latest'
       run: Compress-Archive -Path target/dist/'Screen Locker' -DestinationPath target/dist/Screen-Locker-Windows-x64.zip
@@ -78,11 +76,27 @@ jobs:
           --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp \
           --icon package/macos/icon.icns
 
-    - name: Upload Artifact
+    # --- CHANGE: Replaced single upload step with three conditional steps ---
+    - name: Upload Linux Artifact
+      if: matrix.os == 'ubuntu-latest'
       uses: actions/upload-artifact@v4
       with:
         name: package-${{ matrix.os }}
-        path: target/dist/*.{tar.gz,zip,dmg}
+        path: target/dist/*.tar.gz
+
+    - name: Upload Windows Artifact
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: package-${{ matrix.os }}
+        path: target/dist/*.zip
+
+    - name: Upload macOS Artifact
+      if: matrix.os == 'macos-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: package-${{ matrix.os }}
+        path: target/dist/*.dmg
 
   release:
     needs: build
@@ -100,8 +114,8 @@ jobs:
         with:
           tag_name: latest
           name: "Latest Development Build"
-          body: "This is the latest build from the main branch"
-          prerelease: false
+          body: "This is the latest build from the main branch. These are pre-release builds and may not be stable."
+          prerelease: true
           files: |
             artifacts/package-ubuntu-latest/*
             artifacts/package-windows-latest/*
