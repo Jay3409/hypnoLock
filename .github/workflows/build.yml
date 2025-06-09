@@ -100,7 +100,7 @@ jobs:
         with:
           tag_name: latest
           name: "Latest Development Build"
-          body: "This is the latest build from the main branch"
+          body: "This is the latest build from the main branch."
           prerelease: false
           files: |
             artifacts/package-ubuntu-latest/*

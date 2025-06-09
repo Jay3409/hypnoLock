@@ -9,7 +9,9 @@ import javafx.scene.control.*;
 import javafx.util.Duration;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Optional;
@@ -50,6 +52,8 @@ public class SettingsController {
     private static final String PASSWORD_KEY = "UserPassword";
     private static final String SELECTED_IMAGE_KEY = "SelectedImage";
     private static final DateTimeFormatter TIME_FORMATTER_STATUS = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final DateTimeFormatter TIME_FORMATTER_PAUSE = DateTimeFormatter.ofPattern("HH:mm");
+
 
     @FXML
     public void initialize() {
@@ -83,6 +87,8 @@ public class SettingsController {
 
     @FXML
     private void handleLogoutButton() {
+        if (autoUnpauseTimeline != null) autoUnpauseTimeline.stop();
+        if (statusUpdateTimeline != null) statusUpdateTimeline.stop();
         webSocketManager.close();
         prefs.remove(USERNAME_KEY);
         prefs.remove(PASSWORD_KEY);
@@ -94,16 +100,58 @@ public class SettingsController {
 
     @FXML
     private void handlePauseButton() {
-        // ... (existing code unchanged)
+        TextInputDialog dialog = new TextInputDialog(LocalTime.now().plusHours(1).format(TIME_FORMATTER_PAUSE));
+        dialog.setTitle("Pause Connection");
+        dialog.setHeaderText("The connection will be paused and automatically resume at the specified time.");
+        dialog.setContentText("Enter unpause time (HH:mm):");
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(timeStr -> {
+            try {
+                LocalTime unpauseTime = LocalTime.parse(timeStr, TIME_FORMATTER_PAUSE);
+                pauseEndTime = unpauseTime.atDate(LocalDateTime.now().toLocalDate());
+
+                // If the time is in the past, assume it's for the next day
+                if (pauseEndTime.isBefore(LocalDateTime.now())) {
+                    pauseEndTime = pauseEndTime.plusDays(1);
+                }
+
+                webSocketManager.close();
+                setUiState(State.PAUSED, null); // Status will be set by updatePauseStatus
+                startPauseTimelines();
+
+            } catch (DateTimeParseException e) {
+                updateStatus("Invalid time format. Please use HH:mm.", true);
+            }
+        });
     }
 
     @FXML
     private void handleUnpauseButton() {
-        // ... (existing code unchanged)
+        if (autoUnpauseTimeline != null) autoUnpauseTimeline.stop();
+        if (statusUpdateTimeline != null) statusUpdateTimeline.stop();
+
+        updateStatus("Reconnecting...", false);
+        webSocketManager.start(usernameField.getText(), passwordField.getText(), imageComboBox.getValue());
+    }
+
+    private void startPauseTimelines() {
+        // --- THIS IS THE FIX ---
+        // We use the fully-qualified name for java.time.Duration to resolve the
+        // conflict with javafx.util.Duration, which is imported for the Timelines.
+        java.time.Duration timeUntilUnpause = java.time.Duration.between(LocalDateTime.now(), pauseEndTime);
+        Duration delay = Duration.millis(timeUntilUnpause.toMillis());
+
+        autoUnpauseTimeline = new Timeline(new KeyFrame(delay, e -> Platform.runLater(this::handleUnpauseButton)));
+        autoUnpauseTimeline.play();
+
+        // Timeline to update the status label every second
+        statusUpdateTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> updatePauseStatus()));
+        statusUpdateTimeline.setCycleCount(Timeline.INDEFINITE);
+        statusUpdateTimeline.play();
+        updatePauseStatus(); // Initial update
     }
     
-    // --- NEW Handlers for Controller Management ---
-
     @FXML
     private void handleAddControllerButton() {
         String userToAdd = controllerUsernameField.getText();
@@ -136,15 +184,15 @@ public class SettingsController {
     public void notifyConnectionOpened(String username) {
         Platform.runLater(() -> {
             setUiState(State.CONNECTED, "Connected as " + username);
-            handleListControllersButton(); // Automatically list controllers on connect
+            handleListControllersButton();
         });
     }
 
     public void notifyConnectionClosed(String reason) {
         Platform.runLater(() -> {
-            if (currentState != State.DISCONNECTED && currentState != State.PAUSED) {
+            if (currentState != State.PAUSED) {
                 setUiState(State.DISCONNECTED, "Disconnected. " + reason);
-                controllerListView.getItems().clear(); // Clear the list on disconnect
+                controllerListView.getItems().clear();
             }
         });
     }
@@ -155,14 +203,12 @@ public class SettingsController {
         });
     }
     
-    // --- NEW Methods to handle command results from WebSocketManager ---
-
     public void notifyControllerCommandResult(String command, String result) {
         Platform.runLater(() -> {
             String action = command.equals("add") ? "add" : "remove";
             if ("success".equalsIgnoreCase(result)) {
                 updateStatus("Successfully " + (action.equals("add") ? "added" : "removed") + " controller.", false);
-                handleListControllersButton(); // Refresh the list on success
+                handleListControllersButton();
             } else {
                 updateStatus("Failed to " + action + " controller.", true);
             }
@@ -175,7 +221,6 @@ public class SettingsController {
                 updateStatus("Failed to parse controller list.", true);
                 return;
             }
-            // Simple JSON array parsing
             String content = jsonList.substring(1, jsonList.length() - 1).trim();
             if(content.isEmpty()){
                 controllerListView.setItems(FXCollections.observableArrayList());
@@ -183,7 +228,7 @@ public class SettingsController {
             }
             String[] users = content.split(",");
             controllerListView.setItems(FXCollections.observableArrayList(Arrays.stream(users)
-                .map(u -> u.trim().replace("\"", "")) // remove quotes and whitespace
+                .map(u -> u.trim().replace("\"", ""))
                 .collect(Collectors.toList())));
             updateStatus("Controller list updated.", false);
         });
@@ -201,34 +246,48 @@ public class SettingsController {
         connectButton.setVisible(isDisconnected);
         connectButton.setManaged(isDisconnected);
 
-        pauseButton.setVisible(newState == State.CONNECTED);
-        pauseButton.setManaged(newState == State.CONNECTED);
+        boolean isConnected = (newState == State.CONNECTED);
+        pauseButton.setVisible(isConnected);
+        pauseButton.setManaged(isConnected);
 
-        unpauseButton.setVisible(newState == State.PAUSED);
-        unpauseButton.setManaged(newState ==  State.PAUSED);
+        boolean isPaused = (newState == State.PAUSED);
+        unpauseButton.setVisible(isPaused);
+        unpauseButton.setManaged(isPaused);
 
         logoutButton.setVisible(!isDisconnected);
         logoutButton.setManaged(!isDisconnected);
         
-        // --- NEW ---
-        // Show controller management pane only when connected
-        controllerManagementPane.setVisible(newState == State.CONNECTED);
-        controllerManagementPane.setManaged(newState == State.CONNECTED);
+        controllerManagementPane.setVisible(isConnected);
+        controllerManagementPane.setManaged(isConnected);
     }
 
     private void updatePauseStatus() {
-        // ... (existing code unchanged)
+        if (currentState == State.PAUSED && pauseEndTime != null) {
+            String formattedTime = pauseEndTime.format(TIME_FORMATTER_PAUSE);
+            updateStatus("Paused until " + formattedTime, false);
+        }
     }
 
     public void updateStatus(String text, boolean isError) {
-        // ... (existing code unchanged)
+        Platform.runLater(() -> {
+            statusLabel.setText(String.format("[%s] %s", TIME_FORMATTER_STATUS.format(LocalDateTime.now()), text));
+            if (isError) {
+                statusLabel.setStyle("-fx-text-fill: red;");
+            } else {
+                statusLabel.setStyle("-fx-text-fill: black;");
+            }
+        });
     }
 
     private void loadSettings() {
-        // ... (existing code unchanged)
+        usernameField.setText(prefs.get(USERNAME_KEY, ""));
+        passwordField.setText(new String(Base64.getDecoder().decode(prefs.get(PASSWORD_KEY, ""))));
+        imageComboBox.setValue(prefs.get(SELECTED_IMAGE_KEY, "Spiral 1"));
     }
 
     private void saveSettings() {
-        // ... (existing code unchanged)
+        prefs.put(USERNAME_KEY, usernameField.getText());
+        prefs.put(PASSWORD_KEY, Base64.getEncoder().encodeToString(passwordField.getText().getBytes()));
+        prefs.put(SELECTED_IMAGE_KEY, imageComboBox.getValue());
     }
 }
