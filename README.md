@@ -2,9 +2,10 @@
 
 ## Installation
 
-- Download the most recent build that corresponds to your operatig systen at the bottom (i.e. "package-windows-latest" if youre using widnow)
-- Extract the ZIP file into a location of your choice
-- Run the `Screen Lock` file in the `bin` subfolder
+- Download the [most recent build](https://github.com/Jay3409/hypnoLock/releases/tag/latest) that corresponds to your operatig system (i.e. "package-windows-latest" if youre using widnow)
+- Windows: Extract the zip file and run the `Screen Locker.exe` file
+- Linux: Extract the tar.gz file and run the `bin/Screen Locker` file
+- Mac: Run the `Screen Locker-1.0.0.dmg` file
 
 ## Usage
 
