@@ -124,6 +124,9 @@ public class WebSocketManager implements Runnable {
                 case "auth":
                     if ("success".equals(data)) {
                         log("Authentication successful.");
+                        // --- NEW REQUIREMENT ---
+                        // Send device type information upon successful authentication.
+                        sendMessage("SYS", "set_device_type", "1");
                         settingsController.notifyConnectionOpened(this.username);
                     } else {
                         log("Authentication failed. Reason: " + data);
