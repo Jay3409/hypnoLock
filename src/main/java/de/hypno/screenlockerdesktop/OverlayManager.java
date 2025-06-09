@@ -11,6 +11,7 @@ import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -40,74 +41,114 @@ public class OverlayManager {
                 return;
             }
 
+            // --- REFACTORED LOGIC ---
+
+            // 1. Calculate the total virtual bounds of all screens combined
+            double minX = 0, minY = 0, maxX = 0, maxY = 0;
+            boolean firstScreen = true;
             List<Screen> screens = Screen.getScreens();
             for (Screen screen : screens) {
+                Rectangle2D bounds = screen.getVisualBounds();
+                if (firstScreen) {
+                    minX = bounds.getMinX();
+                    minY = bounds.getMinY();
+                    maxX = bounds.getMaxX();
+                    maxY = bounds.getMaxY();
+                    firstScreen = false;
+                } else {
+                    minX = Math.min(minX, bounds.getMinX());
+                    minY = Math.min(minY, bounds.getMinY());
+                    maxX = Math.max(maxX, bounds.getMaxX());
+                    maxY = Math.max(maxY, bounds.getMaxY());
+                }
+            }
+            double totalWidth = maxX - minX;
+            double totalHeight = maxY - minY;
+
+            // 2. Create a single root Pane to hold all screen elements
+            Pane root = new Pane();
+            // The root pane is transparent; the black background is achieved by the image views
+            root.setStyle("-fx-background-color: transparent;");
+
+            // 3. Create and position ImageViews and Labels for each screen
+            for (Screen screen : screens) {
+                Rectangle2D screenBounds = screen.getVisualBounds();
+
+                // Create a container for each screen's content
+                StackPane screenContainer = new StackPane();
+                screenContainer.setPrefSize(screenBounds.getWidth(), screenBounds.getHeight());
+                // Position this container on the giant root pane
+                screenContainer.setLayoutX(screenBounds.getMinX() - minX);
+                screenContainer.setLayoutY(screenBounds.getMinY() - minY);
+
+                // Create the background image
                 String imagePath = imageName.equals("Spiral 1") ? "spiral1.gif" : "spiral2.gif";
                 InputStream imageStream = getClass().getResourceAsStream(imagePath);
                 Objects.requireNonNull(imageStream, "Image resource not found: " + imagePath);
                 Image gif = new Image(imageStream);
                 ImageView imageView = new ImageView(gif);
+                imageView.setFitWidth(screenBounds.getWidth());
+                imageView.setFitHeight(screenBounds.getHeight());
+                imageView.setPreserveRatio(false);
+                imageView.setSmooth(true);
+                
+                // Set a black background on the container itself
+                screenContainer.setStyle("-fx-background-color: black;");
 
+                // Create the message label
                 Label messageLabel = new Label();
                 messageLabel.setFont(new Font("Arial", 48));
                 messageLabel.setTextFill(Color.WHITE);
                 messageLabel.setStyle("-fx-background-color: rgba(0, 0, 0, 0.5); -fx-padding: 10;");
                 messageLabel.setVisible(false);
-                messageLabels.add(messageLabel);
+                messageLabels.add(messageLabel); // Add to the class-level list for later access
 
-                StackPane root = new StackPane(imageView, messageLabel);
-                root.setAlignment(Pos.CENTER);
-                root.setStyle("-fx-background-color: black;");
-
-                Rectangle2D screenBounds = screen.getVisualBounds();
-                Scene scene = new Scene(root, screenBounds.getWidth(), screenBounds.getHeight());
-                scene.setFill(Color.TRANSPARENT);
-
-                imageView.fitWidthProperty().bind(scene.widthProperty());
-                imageView.fitHeightProperty().bind(scene.heightProperty());
-                imageView.setPreserveRatio(false);
-                imageView.setSmooth(true);
-
-                scene.setOnKeyPressed(event -> {
-                    if (event.getCode() == KeyCode.ESCAPE) {
-                        hideLockOverlay();
-                        webSocketManager.sendMessage(currentUsername, "unlock", null);
-                        webSocketManager.sendMessage(currentUsername, "text", "UNLOCK");
-                        event.consume();
-                        return;
-                    }
-
-                    String character = event.getText();
-                    if (character != null && !character.isEmpty()) {
-                        // Send typed characters as a broadcast to all controllers
-                        webSocketManager.sendMessage(currentUsername, "text", character);
-                    }
-
-                    if (canHideMessageByKey) {
-                        hideMessageOnly();
-                    }
-                });
-
-                Stage overlayStage = new Stage();
-                overlayStage.initStyle(StageStyle.UNDECORATED);
-                overlayStage.initStyle(StageStyle.TRANSPARENT);
-                overlayStage.setAlwaysOnTop(true);
-                
-                // --- NEW LINES TO GRAB FOCUS ---
-                overlayStage.initModality(Modality.APPLICATION_MODAL);
-                
-                overlayStage.setScene(scene);
-
-                overlayStage.setX(screenBounds.getMinX());
-                overlayStage.setY(screenBounds.getMinY());
-
-                overlayStage.show();
-                
-                // --- NEW LINE TO GRAB FOCUS ---
-                overlayStage.requestFocus();
-
-                overlayStages.add(overlayStage);
+                // The StackPane will automatically center the image and the label
+                screenContainer.getChildren().addAll(imageView, messageLabel);
+                root.getChildren().add(screenContainer);
             }
+
+            // 4. Create a single scene and stage that spans all monitors
+            Scene scene = new Scene(root, totalWidth, totalHeight);
+            scene.setFill(Color.TRANSPARENT);
+
+            // 5. Set the single key press handler on the single scene
+            scene.setOnKeyPressed(event -> {
+                if (event.getCode() == KeyCode.ESCAPE) {
+                    hideLockOverlay();
+                    webSocketManager.sendMessage(currentUsername, "unlock", null);
+                    webSocketManager.sendMessage(currentUsername, "text", "UNLOCK");
+                    event.consume();
+                    return;
+                }
+
+                String character = event.getText();
+                if (character != null && !character.isEmpty()) {
+                    // This now fires regardless of which monitor has the "focus"
+                    webSocketManager.sendMessage(currentUsername, "text", character);
+                }
+
+                if (canHideMessageByKey) {
+                    hideMessageOnly();
+                }
+            });
+
+            Stage overlayStage = new Stage();
+            overlayStage.initStyle(StageStyle.UNDECORATED);
+            overlayStage.initStyle(StageStyle.TRANSPARENT);
+            overlayStage.setAlwaysOnTop(true);
+            overlayStage.initModality(Modality.APPLICATION_MODAL);
+            overlayStage.setScene(scene);
+
+            // Position the single, giant stage
+            overlayStage.setX(minX);
+            overlayStage.setY(minY);
+
+            overlayStage.show();
+            overlayStage.requestFocus();
+
+            // Store the single stage so it can be closed later
+            overlayStages.add(overlayStage);
         });
     }
 
