@@ -14,6 +14,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -91,12 +92,20 @@ public class OverlayManager {
                 overlayStage.initStyle(StageStyle.UNDECORATED);
                 overlayStage.initStyle(StageStyle.TRANSPARENT);
                 overlayStage.setAlwaysOnTop(true);
+                
+                // --- NEW LINES TO GRAB FOCUS ---
+                overlayStage.initModality(Modality.APPLICATION_MODAL);
+                
                 overlayStage.setScene(scene);
 
                 overlayStage.setX(screenBounds.getMinX());
                 overlayStage.setY(screenBounds.getMinY());
 
                 overlayStage.show();
+                
+                // --- NEW LINE TO GRAB FOCUS ---
+                overlayStage.requestFocus();
+
                 overlayStages.add(overlayStage);
             }
         });
