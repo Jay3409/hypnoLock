@@ -1,4 +1,4 @@
-name: Build Cross-Platform Packages
+name: Build and Release Cross-Platform Packages
 
 on:
   push:
@@ -29,7 +29,6 @@ jobs:
     - name: Build with Maven
       run: mvn -B install
 
-    # --- CHANGE: Simplified module-path to point to the directory ---
     - name: Run jpackage for Linux
       if: matrix.os == 'ubuntu-latest'
       run: |
@@ -42,7 +41,6 @@ jobs:
           --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp \
           --icon package/linux/icon.png
 
-    # --- CHANGE: Simplified module-path to point to the directory ---
     - name: Run jpackage for Windows
       if: matrix.os == 'windows-latest'
       run: |
@@ -55,7 +53,6 @@ jobs:
           --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp `
           --icon package/windows/icon.ico
 
-    # --- CHANGE: Simplified module-path to point to the directory ---
     - name: Run jpackage for macOS
       if: matrix.os == 'macos-latest'
       run: |
@@ -73,3 +70,26 @@ jobs:
       with:
         name: package-${{ matrix.os }}
         path: target/dist/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Latest Development Build"
+          body: "This is the latest build from the main branch. These are pre-release builds and may not be stable."
+          prerelease: true
+          files: |
+            artifacts/package-ubuntu-latest/*
+            artifacts/package-windows-latest/*
+            artifacts/package-macos-latest/*
