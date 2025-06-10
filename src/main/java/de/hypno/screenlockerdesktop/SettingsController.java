@@ -28,8 +28,13 @@ public class SettingsController {
     @FXML private Button pauseButton;
     @FXML private Button unpauseButton;
     @FXML private Button logoutButton;
+    
+    // --- ADD @FXML FOR LABELS ---
+    @FXML private Label usernameLabel;
+    @FXML private Label passwordLabel;
+    @FXML private Label imageLabel;
 
-    // --- NEW UI Elements for Controller Management ---
+    // --- UI Elements for Controller Management ---
     @FXML private TitledPane controllerManagementPane;
     @FXML private ListView<String> controllerListView;
     @FXML private TextField controllerUsernameField;
@@ -111,13 +116,12 @@ public class SettingsController {
                 LocalTime unpauseTime = LocalTime.parse(timeStr, TIME_FORMATTER_PAUSE);
                 pauseEndTime = unpauseTime.atDate(LocalDateTime.now().toLocalDate());
 
-                // If the time is in the past, assume it's for the next day
                 if (pauseEndTime.isBefore(LocalDateTime.now())) {
                     pauseEndTime = pauseEndTime.plusDays(1);
                 }
 
                 webSocketManager.close();
-                setUiState(State.PAUSED, null); // Status will be set by updatePauseStatus
+                setUiState(State.PAUSED, null);
                 startPauseTimelines();
 
             } catch (DateTimeParseException e) {
@@ -136,20 +140,16 @@ public class SettingsController {
     }
 
     private void startPauseTimelines() {
-        // --- THIS IS THE FIX ---
-        // We use the fully-qualified name for java.time.Duration to resolve the
-        // conflict with javafx.util.Duration, which is imported for the Timelines.
         java.time.Duration timeUntilUnpause = java.time.Duration.between(LocalDateTime.now(), pauseEndTime);
         Duration delay = Duration.millis(timeUntilUnpause.toMillis());
 
         autoUnpauseTimeline = new Timeline(new KeyFrame(delay, e -> Platform.runLater(this::handleUnpauseButton)));
         autoUnpauseTimeline.play();
 
-        // Timeline to update the status label every second
         statusUpdateTimeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> updatePauseStatus()));
         statusUpdateTimeline.setCycleCount(Timeline.INDEFINITE);
         statusUpdateTimeline.play();
-        updatePauseStatus(); // Initial update
+        updatePauseStatus();
     }
     
     @FXML
@@ -243,14 +243,39 @@ public class SettingsController {
         }
 
         boolean isDisconnected = (newState == State.DISCONNECTED);
+        boolean isConnected = (newState == State.CONNECTED);
+        boolean isPaused = (newState == State.PAUSED);
+        
+        // --- UPDATED SECTION ---
+        // Toggle visibility of all login-related controls, including labels.
+        if (usernameLabel != null) {
+            usernameLabel.setVisible(isDisconnected);
+            usernameLabel.setManaged(isDisconnected);
+        }
+        usernameField.setVisible(isDisconnected);
+        usernameField.setManaged(isDisconnected);
+
+        if (passwordLabel != null) {
+            passwordLabel.setVisible(isDisconnected);
+            passwordLabel.setManaged(isDisconnected);
+        }
+        passwordField.setVisible(isDisconnected);
+        passwordField.setManaged(isDisconnected);
+
+        if (imageLabel != null) {
+            imageLabel.setVisible(isDisconnected);
+            imageLabel.setManaged(isDisconnected);
+        }
+        imageComboBox.setVisible(isDisconnected);
+        imageComboBox.setManaged(isDisconnected);
+        // --- END UPDATED SECTION ---
+
         connectButton.setVisible(isDisconnected);
         connectButton.setManaged(isDisconnected);
 
-        boolean isConnected = (newState == State.CONNECTED);
         pauseButton.setVisible(isConnected);
         pauseButton.setManaged(isConnected);
 
-        boolean isPaused = (newState == State.PAUSED);
         unpauseButton.setVisible(isPaused);
         unpauseButton.setManaged(isPaused);
 

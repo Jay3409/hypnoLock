@@ -35,9 +35,9 @@
           <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
         </rowConstraints>
          <children>
-            <Label text="Username:" />
-            <Label text="Password:" GridPane.rowIndex="1" />
-            <Label text="Hypno Image:" GridPane.rowIndex="2" />
+            <Label text="Username:" fx:id="usernameLabel"/>
+            <Label text="Password:" fx:id="passwordLabel" GridPane.rowIndex="1" />
+            <Label text="Hypno Image:" fx:id="imageLabel" GridPane.rowIndex="2" />
             <TextField fx:id="usernameField" GridPane.columnIndex="1" />
             <PasswordField fx:id="passwordField" GridPane.columnIndex="1" GridPane.rowIndex="1" />
             <ComboBox fx:id="imageComboBox" prefWidth="150.0" GridPane.columnIndex="1" GridPane.rowIndex="2" />
