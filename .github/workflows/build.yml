@@ -36,7 +36,7 @@ jobs:
         jpackage --type app-image \
           --app-version 1.0.0 \
           --dest target/dist \
-          --name "Screen Locker" \
+          --name "ScreenLocker" \ # CHANGED: Removed space
           --module-path "target/dependencies:target/screenlockerdesktop-1.0-SNAPSHOT.jar" \
           --add-modules de.hypno.screenlockerdesktop,javafx.controls,javafx.fxml,org.java_websocket,jdk.crypto.ec \
           --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp \
@@ -44,7 +44,8 @@ jobs:
     
     - name: Archive Linux app-image
       if: matrix.os == 'ubuntu-latest'
-      run: tar -czf target/dist/Screen-Locker-Linux-x64.tar.gz -C target/dist "Screen Locker"
+      # CHANGED: Updated the directory name to match the new jpackage name
+      run: tar -czf target/dist/Screen-Locker-Linux-x64.tar.gz -C target/dist "ScreenLocker"
 
     # --- JPackage for Windows ---
     - name: Run jpackage for Windows
@@ -53,7 +54,7 @@ jobs:
         jpackage --type app-image `
           --app-version 1.0.0 `
           --dest target/dist `
-          --name "Screen Locker" `
+          --name "ScreenLocker" ` # CHANGED: Removed space
           --module-path "target/dependencies;target/screenlockerdesktop-1.0-SNAPSHOT.jar" `
           --add-modules de.hypno.screenlockerdesktop,javafx.controls,javafx.fxml,org.java_websocket,jdk.crypto.ec `
           --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp `
@@ -61,7 +62,8 @@ jobs:
 
     - name: Archive Windows app-image
       if: matrix.os == 'windows-latest'
-      run: Compress-Archive -Path target/dist/'Screen Locker' -DestinationPath target/dist/Screen-Locker-Windows-x64.zip
+      # CHANGED: Updated the directory path to match the new jpackage name
+      run: Compress-Archive -Path target/dist/ScreenLocker -DestinationPath target/dist/Screen-Locker-Windows-x64.zip
       
     # --- JPackage for macOS ---
     - name: Run jpackage for macOS
@@ -70,13 +72,12 @@ jobs:
         jpackage --type dmg \
           --app-version 1.0.0 \
           --dest target/dist \
-          --name "Screen Locker" \
+          --name "ScreenLocker" \ # CHANGED: Removed space
           --module-path "target/dependencies:target/screenlockerdesktop-1.0-SNAPSHOT.jar" \
           --add-modules de.hypno.screenlockerdesktop,javafx.controls,javafx.fxml,org.java_websocket,jdk.crypto.ec \
           --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp \
           --icon package/macos/icon.icns
 
-    # --- CHANGE: Replaced single upload step with three conditional steps ---
     - name: Upload Linux Artifact
       if: matrix.os == 'ubuntu-latest'
       uses: actions/upload-artifact@v4
