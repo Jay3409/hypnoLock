@@ -125,6 +125,5 @@ jobs:
             artifacts/package-linux/*.tar.gz
             artifacts/package-windows/*.zip
             artifacts/package-macos/*.dmg
-          # Set to true to create a draft release, false to publish it immediately
           # Automatically generate release notes from commits
           generate_release_notes: true
