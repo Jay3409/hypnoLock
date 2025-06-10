@@ -44,7 +44,6 @@ jobs:
     
     - name: Archive Linux app-image
       if: matrix.os == 'ubuntu-latest'
-      # CHANGED: Updated the directory name to match the new jpackage name
       run: tar -czf target/dist/Screen-Locker-Linux-x64.tar.gz -C target/dist "ScreenLocker"
 
     # --- JPackage for Windows ---
@@ -62,7 +61,6 @@ jobs:
 
     - name: Archive Windows app-image
       if: matrix.os == 'windows-latest'
-      # CHANGED: Updated the directory path to match the new jpackage name
       run: Compress-Archive -Path target/dist/ScreenLocker -DestinationPath target/dist/Screen-Locker-Windows-x64.zip
       
     # --- JPackage for macOS ---
@@ -99,6 +97,7 @@ jobs:
         name: package-${{ matrix.os }}
         path: target/dist/*.dmg
 
+# --- START OF MODIFIED SECTION ---
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -110,14 +109,24 @@ jobs:
         with:
           path: artifacts
 
-      - name: Create Release
+      - name: Create Release and Upload Linux Artifact
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: "Latest Development Build"
           body: "This is the latest build from the main branch."
           prerelease: false
-          files: |
-            artifacts/package-ubuntu-latest/*
-            artifacts/package-windows-latest/*
-            artifacts/package-macos-latest/*
+          files: artifacts/package-ubuntu-latest/*
+
+      - name: Upload Windows Artifact to Existing Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          files: artifacts/package-windows-latest/*
+
+      - name: Upload macOS Artifact to Existing Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          files: artifacts/package-macos-latest/*
+# --- END OF MODIFIED SECTION ---
