@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Objects;
 
 public class OverlayManager {
-
+    private final AudioManager audioManager = new AudioManager(); // ADD THIS LINE
     private final List<Stage> overlayStages = new ArrayList<>();
     private final List<Label> messageLabels = new ArrayList<>();
     private final List<Label> clickHintLabels = new ArrayList<>();
@@ -190,6 +190,9 @@ public class OverlayManager {
             overlayStage.requestFocus();
 
             overlayStages.add(overlayStage);
+            
+            // After we are sure the window is open, mute the audio
+            audioManager.mute();
         });
     }
 
@@ -204,6 +207,7 @@ public class OverlayManager {
 
     public void hideLockOverlay() {
         Platform.runLater(() -> {
+            audioManager.unmute();
             if (keystrokeClearTimer != null) {
                 keystrokeClearTimer.stop();
             }
