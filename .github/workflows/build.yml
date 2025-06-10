@@ -75,7 +75,7 @@ jobs:
           --name "ScreenLocker" \
           --module-path "target/dependencies:target/screenlockerdesktop-1.0-SNAPSHOT.jar" \
           --add-modules de.hypno.screenlockerdesktop,javafx.controls,javafx.fxml,org.java_websocket,jdk.crypto.ec \
-          --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp 
+          --module de.hypno.screenlockerdesktop/de.hypno.screenlockerdesktop.MainApp \
           --icon package/macos/icon.icns
 
     - name: Upload Linux Artifact
